@@ -54,7 +54,11 @@ public static class WebApplicationBuilderExtensions
     {
         webApplicationBuilder
             .WebHost
-            .ConfigureLogging(logging => { logging.ClearProviders(); });
+            .ConfigureLogging(logging =>
+            {
+                logging.ClearProviders();
+                logging.AddConsole();
+            });
 
         return webApplicationBuilder;
     }
