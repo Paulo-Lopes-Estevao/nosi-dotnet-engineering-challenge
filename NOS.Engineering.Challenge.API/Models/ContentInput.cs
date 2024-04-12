@@ -26,3 +26,8 @@ public class ContentInput
         );
     }
 }
+
+public class MessageOutput
+{
+    public string Message { get; set; }
+}

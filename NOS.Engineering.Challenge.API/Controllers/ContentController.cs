@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using NOS.Engineering.Challenge.API.Models;
 using NOS.Engineering.Challenge.Managers;
+using NOS.Engineering.Challenge.Models;
 
 namespace NOS.Engineering.Challenge.API.Controllers;
 
@@ -68,20 +69,71 @@ public class ContentController : Controller
     }
     
     [HttpPost("{id}/genre")]
-    public Task<IActionResult> AddGenres(
+    public async Task<IActionResult> AddGenres(
         Guid id,
         [FromBody] IEnumerable<string> genre
     )
     {
-        return Task.FromResult<IActionResult>(StatusCode((int)HttpStatusCode.NotImplemented));
+        var content = await _manager.GetContent(id).ConfigureAwait(false);
+        if (content == null)
+            return NotFound();
+        
+        var newGenres = new List<string>();
+        foreach (var gen in genre)
+        {
+            if (!content.GenreList.Contains(gen))
+                newGenres.Add(gen);
+            else
+                return BadRequest(new MessageOutput
+                {
+                    Message = "genre already exists"
+                });
+        }
+        
+        var updatedContentDto = new ContentDto
+        (
+            content.Title,
+            content.SubTitle,
+            content.Description,
+            content.ImageUrl,
+            content.Duration,
+            content.StartTime,
+            content.EndTime,
+            content.GenreList.Concat(newGenres).ToList()
+        );
+
+        var updatedContent = await _manager.UpdateContent(id, updatedContentDto).ConfigureAwait(false);
+
+        return Ok(updatedContent);
     }
     
     [HttpDelete("{id}/genre")]
-    public Task<IActionResult> RemoveGenres(
+    public async Task<IActionResult> RemoveGenres(
         Guid id,
         [FromBody] IEnumerable<string> genre
     )
     {
-        return Task.FromResult<IActionResult>(StatusCode((int)HttpStatusCode.NotImplemented));
+        var content = await _manager.GetContent(id).ConfigureAwait(false);
+        if (content == null)
+            return NotFound();
+
+        
+        var genreList = content.GenreList.ToList();
+        
+        genreList.RemoveAll(genre.Contains);
+        
+        var updatedContent = await _manager.UpdateContent(id, new ContentDto
+        (
+            content.Title,
+            content.SubTitle,
+            content.Description,
+            content.ImageUrl,
+            content.Duration,
+            content.StartTime,
+            content.EndTime,
+            genreList
+        )).ConfigureAwait(false);
+
+        return Ok(updatedContent);
     }
 }
