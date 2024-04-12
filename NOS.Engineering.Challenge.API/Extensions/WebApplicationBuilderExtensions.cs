@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using NOS.Engineering.Challenge.Database;
 using NOS.Engineering.Challenge.Managers;
@@ -18,6 +19,11 @@ public static class WebApplicationBuilderExtensions
             options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
             options.SerializerOptions.PropertyNamingPolicy = null;
         });
+
+        var connectionString = webApplicationBuilder.Configuration.GetConnectionString("DefaultConnection");
+        serviceCollection.AddDbContext<AppDbContext>(option => option.UseNpgsql(connectionString,
+            src => src.MigrationsAssembly("NOS.Engineering.Challenge.API")));
+        
         serviceCollection.AddControllers();
         serviceCollection
             .AddEndpointsApiExplorer();
@@ -38,6 +44,7 @@ public static class WebApplicationBuilderExtensions
         services.AddSingleton<IDatabase<Content, ContentDto>,SlowDatabase<Content, ContentDto>>();
         services.AddSingleton<IMapper<Content, ContentDto>, ContentMapper>();
         services.AddSingleton<IMockData<Content>, MockData>();
+        services.AddDbContext<AppDbContext>();
 
         return services;
     }

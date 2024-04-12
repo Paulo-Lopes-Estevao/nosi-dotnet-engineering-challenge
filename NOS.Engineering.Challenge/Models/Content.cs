@@ -1,7 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace NOS.Engineering.Challenge.Models;
 
 public class Content
 {
+    [Key]
     public Guid Id { get; }
     public string Title { get; }
     public string SubTitle { get; }
@@ -12,6 +15,10 @@ public class Content
     public DateTime EndTime { get; }
     public IEnumerable<string> GenreList { get; }
 
+    public Content()
+    {
+        
+    }
 
     public Content(Guid id, string title, string subTitle, string description, string imageUrl, int duration, DateTime startTime, DateTime endTime, IEnumerable<string> genreList)
     {

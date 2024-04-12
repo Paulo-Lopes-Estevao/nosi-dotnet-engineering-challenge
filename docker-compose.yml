@@ -1,0 +1,27 @@
+﻿version: '3.9'
+
+services:
+  nos.engineering.challenge.api:
+    image: nos.engineering.challenge.api
+    build:
+      context: .
+      dockerfile: NOS.Engineering.Challenge.API/Dockerfile
+      
+  db:
+    image: postgres:9.4
+    container_name: nos.engineering.challenge.db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nos_db
+    volumes:
+      - ./tmp/postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - dev
+
+
+networks:
+  dev:
+    driver: bridge
