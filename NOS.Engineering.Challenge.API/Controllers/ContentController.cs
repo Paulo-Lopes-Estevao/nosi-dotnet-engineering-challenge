@@ -3,6 +3,7 @@ using NOS.Engineering.Challenge.API.Models;
 using NOS.Engineering.Challenge.Managers;
 using NOS.Engineering.Challenge.Models;
 using Microsoft.Extensions.Logging;
+using NOS.Engineering.Challenge.Cache;
 
 namespace NOS.Engineering.Challenge.API.Controllers;
 
@@ -12,10 +13,13 @@ public class ContentController : Controller
 {
     private readonly IContentsManager _manager;
     private readonly ILogger<ContentController> _logger;
-    public ContentController(ILogger<ContentController> logger, IContentsManager manager)
+    private readonly ICacheService<Content> _cacheService;
+    
+    public ContentController(ILogger<ContentController> logger, IContentsManager manager, ICacheService<Content> cacheService)
     {
         _manager = manager;
         _logger = logger;
+        _cacheService = cacheService;
     }
     
     [HttpGet]
@@ -49,6 +53,13 @@ public class ContentController : Controller
         try
         {
             _logger.LogInformation($"Attempting to retrieve content with ID: {id}");
+            
+            var cachedContent = await _cacheService.GetAsync(id).ConfigureAwait(false);
+            if (cachedContent != null)
+            {
+                _logger.LogInformation($"Content with ID: {id} found in cache");
+                return Ok(cachedContent);
+            }
 
             var content = await _manager.GetContent(id).ConfigureAwait(false);
 
@@ -57,6 +68,9 @@ public class ContentController : Controller
                 _logger.LogWarning($"Content with ID: {id} not found");
                 return NotFound();
             }
+            
+            await _cacheService.SetAsync(content.Id, content).ConfigureAwait(false);
+            _logger.LogInformation($"Content with ID: {id} retrieved from database and cached successfully");
 
             _logger.LogInformation($"Successfully retrieved content with ID: {id}");
             return Ok(content);
@@ -84,6 +98,8 @@ public class ContentController : Controller
                 _logger.LogWarning("Failed to create content. Null content returned.");
                 return Problem();
             }
+            
+            await _cacheService.SetAsync(createdContent.Id, createdContent).ConfigureAwait(false);
 
             _logger.LogInformation("Content created successfully.");
             return Ok(createdContent);
@@ -112,6 +128,8 @@ public class ContentController : Controller
                 _logger.LogWarning($"Content with ID: {id} not found");
                 return NotFound();
             }
+            
+            await _cacheService.SetAsync(id, updatedContent);
 
             _logger.LogInformation($"Content with ID: {id} updated successfully");
 
@@ -133,6 +151,8 @@ public class ContentController : Controller
 
         try
         {
+            await _cacheService.RemoveAsync(id);
+            
             var deletedId = await _manager.DeleteContent(id).ConfigureAwait(false);
             _logger.LogInformation($"Content with ID {deletedId} deleted successfully.");
             return Ok(deletedId);
@@ -152,40 +172,90 @@ public class ContentController : Controller
     {
         try
         {
-            _logger.LogInformation($"Adding genres to content with id {id}");
-            
-            var content = await _manager.GetContent(id).ConfigureAwait(false);
+            var content = await _cacheService.GetAsync(id);
             if (content == null)
-                return NotFound();
-
-            var newGenres = new List<string>();
-            foreach (var gen in genre)
             {
-                if (!content.GenreList.Contains(gen))
-                    newGenres.Add(gen);
-                else
+                content = await _manager.GetContent(id).ConfigureAwait(false);
+                if (content == null)
+                    return NotFound();
+                
+                var newGenres = new List<string>();
+                foreach (var gen in genre)
                 {
-                    _logger.LogWarning($"Genre '{gen}' already exists in content with id {id}");
-                    return BadRequest(new MessageOutput { Message = "Genre already exists" });
+                    if (!content.GenreList.Contains(gen))
+                        newGenres.Add(gen);
+                    else
+                    {
+                        _logger.LogWarning($"Genre '{gen}' already exists in content with id {id}");
+                        return BadRequest(new MessageOutput { Message = "Genre already exists" });
+                    }
                 }
+                
+                content = new Content
+                (
+                    content.Id,
+                    content.Title,
+                    content.SubTitle,
+                    content.Description,
+                    content.ImageUrl,
+                    content.Duration,
+                    content.StartTime,
+                    content.EndTime,
+                    content.GenreList.Concat(newGenres).ToList()
+                );
+                
+                await _cacheService.SetAsync(id, content);
+                
+                var updatedContentDto = new ContentDto
+                (
+                    content.Title,
+                    content.SubTitle,
+                    content.Description,
+                    content.ImageUrl,
+                    content.Duration,
+                    content.StartTime,
+                    content.EndTime,
+                    content.GenreList.Concat(newGenres).ToList()
+                );
+                
+                var updatedContent = await _manager.UpdateContent(id, updatedContentDto).ConfigureAwait(false);
+                _logger.LogInformation($"Genres added successfully to content with id {id}");
+                
+                return Ok(updatedContent);
+            }
+            else
+            {
+                var newGenres = new List<string>();
+                foreach (var gen in genre)
+                {
+                    if (!content.GenreList.Contains(gen))
+                        newGenres.Add(gen);
+                    else
+                    {
+                        _logger.LogWarning($"Genre '{gen}' already exists in content with id {id}");
+                        return BadRequest(new MessageOutput { Message = "Genre already exists" });
+                    }
+                }
+                
+                var updatedContentDto = new Content
+                (
+                    content.Id,
+                    content.Title,
+                    content.SubTitle,
+                    content.Description,
+                    content.ImageUrl,
+                    content.Duration,
+                    content.StartTime,
+                    content.EndTime,
+                    content.GenreList.Concat(newGenres).ToList()
+                );
+                
+                await _cacheService.SetAsync(id, updatedContentDto);
             }
 
-            var updatedContentDto = new ContentDto
-            (
-                content.Title,
-                content.SubTitle,
-                content.Description,
-                content.ImageUrl,
-                content.Duration,
-                content.StartTime,
-                content.EndTime,
-                content.GenreList.Concat(newGenres).ToList()
-            );
-
-            var updatedContent = await _manager.UpdateContent(id, updatedContentDto).ConfigureAwait(false);
             _logger.LogInformation($"Genres added successfully to content with id {id}");
 
-            return Ok(updatedContent);
+            return Ok(content);
         }
         catch (Exception ex)
         {
@@ -202,18 +272,25 @@ public class ContentController : Controller
     {
         try
         {
-            var content = await _manager.GetContent(id).ConfigureAwait(false);
+            var content = await _cacheService.GetAsync(id).ConfigureAwait(false);
+            
             if (content == null)
             {
-                _logger.LogWarning($"Content with id '{id}' not found.");
-                return NotFound();
+                content = await _manager.GetContent(id).ConfigureAwait(false);
+                if (content == null)
+                {
+                    _logger.LogWarning($"Content with id '{id}' not found.");
+                    return NotFound();
+                }
             }
 
             var genreList = content.GenreList.ToList();
 
             genreList.RemoveAll(genre.Contains);
 
-            var updatedContent = await _manager.UpdateContent(id, new ContentDto
+            await _cacheService.RemoveAsync(content.Id);
+
+            var updatedContentDto = await _manager.UpdateContent(id, new ContentDto
             (
                 content.Title,
                 content.SubTitle,
@@ -224,6 +301,21 @@ public class ContentController : Controller
                 content.EndTime,
                 genreList
             )).ConfigureAwait(false);
+
+            var updatedContent = new Content
+            (
+                content.Id,
+                content.Title,
+                content.SubTitle,
+                content.Description,
+                content.ImageUrl,
+                content.Duration,
+                content.StartTime,
+                content.EndTime,
+                genreList
+            );
+                
+            await _cacheService.SetAsync(id, updatedContent);
 
             _logger.LogInformation($"Genres removed from content with id '{id}'.");
             return Ok(updatedContent);

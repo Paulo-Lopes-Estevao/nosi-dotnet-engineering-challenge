@@ -1,9 +1,19 @@
+using NOS.Engineering.Challenge.Cache;
 using NOS.Engineering.Challenge.Models;
 
 namespace NOS.Engineering.Challenge.Database;
 
 public class MockData : IMockData<Content>
 {
+    private readonly ICacheService<Content> _cache;
+    private readonly ICacheService<Content> _cacheService;
+
+    public MockData(ICacheService<Content> cache, ICacheService<Content> cacheService)
+    {
+        _cache = cache;
+        _cacheService = cacheService;
+    }
+    
     public IDictionary<Guid, Content> GenerateMocks()
     {
         IDictionary<Guid, Content> mockContents = new Dictionary<Guid, Content>();
@@ -19,7 +29,11 @@ public class MockData : IMockData<Content>
             DateTime endTime = DateTime.Now.AddDays(i).AddHours(2);
             List<string> genres = GetRandomGenres();
 
-            mockContents.Add(id, new Content(id, title, subTitle, description, imageUrl, duration, startTime, endTime, genres));
+            var content = new Content(id, title, subTitle, description, imageUrl, duration, startTime, endTime, genres);
+            
+            _cache.SetAsync(id, content);
+            
+            mockContents.Add(id, content);
         }
 
         return mockContents;

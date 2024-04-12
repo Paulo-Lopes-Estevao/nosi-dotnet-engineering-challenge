@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using NOS.Engineering.Challenge.Cache;
 using NOS.Engineering.Challenge.Database;
 using NOS.Engineering.Challenge.Managers;
 using NOS.Engineering.Challenge.Models;
@@ -41,6 +42,8 @@ public static class WebApplicationBuilderExtensions
 
     private static IServiceCollection RegisterSlowDatabase(this IServiceCollection services)
     {
+        services.AddMemoryCache();
+        services.AddSingleton<ICacheService<Content>, MemoryCacheService<Content>>();
         services.AddSingleton<IDatabase<Content, ContentDto>,SlowDatabase<Content, ContentDto>>();
         services.AddSingleton<IMapper<Content, ContentDto>, ContentMapper>();
         services.AddSingleton<IMockData<Content>, MockData>();
