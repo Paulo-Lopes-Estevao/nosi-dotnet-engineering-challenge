@@ -256,4 +256,80 @@ public class ContentTests
         // Assert
         Assert.False(hasGenre);
     }
+    
+    // CreateContent
+    [Fact]
+    public void CreateContent_SuccessfullyCreatesContent_WhenParametersAreValid()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var title = "Title";
+        var subTitle = "SubTitle";
+        var description = "Description";
+        var imageUrl = "https://example.com/image.jpg";
+        var duration = 120;
+        var startTime = DateTime.Now;
+        var endTime = DateTime.Now.AddDays(1);
+        var genreList = new[] { "Action", "Adventure" };
+        var content = new Content
+        (
+            id,
+            title,
+            subTitle,
+            description,
+            imageUrl,
+            duration,
+            startTime,
+            endTime,
+            genreList
+        );
+
+        // Act
+        var createdContent = content.CreateContent(content);
+
+        // Assert
+        Assert.Equal(id, createdContent.Id);
+        Assert.Equal(title, createdContent.Title);
+        Assert.Equal(subTitle, createdContent.SubTitle);
+        Assert.Equal(description, createdContent.Description);
+        Assert.Equal(imageUrl, createdContent.ImageUrl);
+        Assert.Equal(duration, createdContent.Duration);
+        Assert.Equal(startTime, createdContent.StartTime);
+        Assert.Equal(endTime, createdContent.EndTime);
+        Assert.Equal(genreList, createdContent.GenreList);
+    }
+    
+    [Theory]
+    [InlineData(null, "SubTitle", "Description", "https://example.com/image.jpg", 120, "2024-04-15T12:00:00", "2024-04-16T12:00:00", new[] { "Action", "Adventure" })]
+    public void CreateContent_ThrowsArgumentException_WhenTitleIsNull(
+        string title, string subTitle, string description, string imageUrl, int duration, string startTime, string endTime, string[] genreList)
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var startDate = DateTime.Parse(startTime);
+        var endDate = DateTime.Parse(endTime);
+        var content = new Content(id, title, subTitle, description, imageUrl, duration, startDate, endDate, genreList);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => content.CreateContent(content));
+    }
+    
+    [Theory]
+    [InlineData(null, "SubTitle", "Description", "https://example.com/image.jpg", 120, "2024-04-18", "2024-04-19", new[] { "Action", "Adventure" })]
+    [InlineData("Title", null, "Description", "https://example.com/image.jpg", 120, "2024-04-18", "2024-04-19", new[] { "Action", "Adventure" })]
+    [InlineData("Title", "SubTitle", null, "https://example.com/image.jpg", 120, "2024-04-18", "2024-04-19", new[] { "Action", "Adventure" })]
+    [InlineData("Title", "SubTitle", "Description", null, 120, "2024-04-18", "2024-04-19", new[] { "Action", "Adventure" })]
+    [InlineData("Title", "SubTitle", "Description", "https://example.com/image.jpg", -120, "2024-04-18", "2024-04-19", new[] { "Action", "Adventure" })]
+    [InlineData("Title", "SubTitle", "Description", "https://example.com/image.jpg", 120, "2024-04-16T12:00:00", "2024-04-15T12:00:00", new []{""})]
+    public void CreateContent_ThrowsArgumentException_WhenParameterIsNull(string title, string subTitle, string description, string imageUrl, int duration, string startTime, string endTime, string[] genreList)
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var startDate = DateTime.Parse(startTime);
+        var endDate = DateTime.Parse(endTime);
+        var content = new Content(id, title, subTitle, description, imageUrl, duration, startDate, endDate, genreList);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => content.CreateContent(content));
+    }
 }
