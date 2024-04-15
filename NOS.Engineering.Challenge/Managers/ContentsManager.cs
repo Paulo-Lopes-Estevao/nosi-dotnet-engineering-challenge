@@ -16,6 +16,23 @@ public class ContentsManager : IContentsManager
     {
         return _database.ReadAll();
     }
+    
+    public async Task<IEnumerable<Content?>> GetFilteredContents(string? title, string? genre)
+    {
+        var contents = await _database.ReadAll().ConfigureAwait(false);
+
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            contents = contents.Where(c => c?.Title?.Contains(title, StringComparison.OrdinalIgnoreCase) ?? false);
+        }
+
+        if (!string.IsNullOrWhiteSpace(genre))
+        {
+            contents = contents.Where(c => c?.GenreList?.Any(g => string.Equals(g, genre, StringComparison.OrdinalIgnoreCase)) ?? false);
+        }
+
+        return contents;
+    }
 
     public Task<Content?> CreateContent(ContentDto content)
     {

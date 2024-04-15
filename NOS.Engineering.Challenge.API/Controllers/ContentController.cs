@@ -24,6 +24,7 @@ public class ContentController : Controller
     }
     
     [HttpGet]
+    [Obsolete("This endpoint is deprecated. Use /api/v1/Content/filtered instead.")]
     public async Task<IActionResult> GetManyContents()
     {
         _logger.LogInformation("Requesting all contents...");
@@ -44,6 +45,31 @@ public class ContentController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while getting contents.");
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+    
+    [HttpGet("filtered")]
+    public async Task<IActionResult> GetFilteredContents(string? title, string? genre)
+    {
+        _logger.LogInformation($"Requesting filtered contents with title: '{title}' and genre: '{genre}'...");
+
+        try
+        {
+            var contents = await _manager.GetFilteredContents(title, genre).ConfigureAwait(false);
+
+            if (!contents.Any())
+            {
+                _logger.LogWarning($"Returned {contents.Count()} filtered contents.");
+                return NotFound();
+            }
+        
+            _logger.LogInformation($"Returned {contents.Count()} filtered contents.");
+            return Ok(contents);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while getting filtered contents.");
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
     }
