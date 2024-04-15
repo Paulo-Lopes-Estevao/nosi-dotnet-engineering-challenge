@@ -28,6 +28,34 @@ public class Content
         EndTime = endTime;
         GenreList = genreList;
     }
+
+    public Content()
+    {
+        
+    }
+    
+    public Content CreateContent(Content content)
+    {
+        if (string.IsNullOrWhiteSpace(content.Title))
+            throw new ArgumentException("Title cannot be null or empty.", nameof(content.Title));
+
+        if (string.IsNullOrWhiteSpace(content.SubTitle))
+            throw new ArgumentException("SubTitle cannot be null or empty.", nameof(content.SubTitle));
+
+        if (string.IsNullOrWhiteSpace(content.Description))
+            throw new ArgumentException("Description cannot be null or empty.", nameof(content.Description));
+        
+        if(int.IsNegative(content.Duration))
+            throw new ArgumentException("Duration must be greater than zero.", nameof(content.Duration));
+
+        if (!ContentValidator.IsValidImageUrl(content.ImageUrl))
+            throw new ArgumentException("Invalid image URL.", nameof(content.ImageUrl));
+        
+        if (content.StartTime >= content.EndTime)
+            throw new ArgumentException("End time must be greater than start time.", nameof(content.EndTime));
+
+        return new Content(content.Id, content.Title, content.SubTitle, content.Description, content.ImageUrl, content.Duration, content.StartTime, content.EndTime, content.GenreList ?? Enumerable.Empty<string>());
+    }
     
     public Content AddGenre(string genre)
     {
