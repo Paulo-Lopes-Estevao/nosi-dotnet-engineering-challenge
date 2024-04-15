@@ -201,60 +201,20 @@ public class ContentController : Controller
     }
     
     [HttpDelete("{id}/genre")]
-    public async Task<IActionResult> RemoveGenres(
-        Guid id,
-        [FromBody] IEnumerable<string> genre
-    )
+    public async Task<IActionResult> RemoveGenres(Guid id, [FromBody] IEnumerable<string> genres)
     {
         try
         {
-            var content = await _cacheService.GetAsync(id).ConfigureAwait(false);
-            
+            var content = await GetContentAsync(id);
             if (content == null)
-            {
-                content = await _manager.GetContent(id).ConfigureAwait(false);
-                if (content == null)
-                {
-                    _logger.LogWarning($"Content with id '{id}' not found.");
-                    return NotFound();
-                }
-            }
+                return NotFound();
 
-            var genreList = content.GenreList.ToList();
+            content = genres.Aggregate(content, (currentContent, genre) => currentContent.RemoveGenre(genre));
 
-            genreList.RemoveAll(genre.Contains);
+            await UpdateContentAsync(id, content);
 
-            await _cacheService.RemoveAsync(content.Id);
-
-            var updatedContentDto = await _manager.UpdateContent(id, new ContentDto
-            (
-                content.Title,
-                content.SubTitle,
-                content.Description,
-                content.ImageUrl,
-                content.Duration,
-                content.StartTime,
-                content.EndTime,
-                genreList
-            )).ConfigureAwait(false);
-
-            var updatedContent = new Content
-            (
-                content.Id,
-                content.Title,
-                content.SubTitle,
-                content.Description,
-                content.ImageUrl,
-                content.Duration,
-                content.StartTime,
-                content.EndTime,
-                genreList
-            );
-                
-            await _cacheService.SetAsync(id, updatedContent);
-
-            _logger.LogInformation($"Genres removed from content with id '{id}'.");
-            return Ok(updatedContent);
+            _logger.LogInformation($"Genres removed successfully from content with id '{id}'.");
+            return Ok(content);
         }
         catch (Exception ex)
         {
