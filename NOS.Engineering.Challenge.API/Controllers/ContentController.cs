@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using NOS.Engineering.Challenge.API.Models;
 using NOS.Engineering.Challenge.Managers;
 using NOS.Engineering.Challenge.Models;
-using Microsoft.Extensions.Logging;
 using NOS.Engineering.Challenge.Cache;
+using NOS.Engineering.Challenge.Exceptions;
 
 namespace NOS.Engineering.Challenge.API.Controllers;
 
@@ -14,8 +14,9 @@ public class ContentController : Controller
     private readonly IContentsManager _manager;
     private readonly ILogger<ContentController> _logger;
     private readonly ICacheService<Content> _cacheService;
-    
-    public ContentController(ILogger<ContentController> logger, IContentsManager manager, ICacheService<Content> cacheService)
+
+    public ContentController(ILogger<ContentController> logger, IContentsManager manager,
+        ICacheService<Content> cacheService)
     {
         _manager = manager;
         _logger = logger;
@@ -165,93 +166,28 @@ public class ContentController : Controller
     }
     
     [HttpPost("{id}/genre")]
-    public async Task<IActionResult> AddGenres(
-        Guid id,
-        [FromBody] IEnumerable<string> genre
-    )
+    public async Task<IActionResult> AddGenres(Guid id, [FromBody] IEnumerable<string> genres)
     {
         try
         {
-            var content = await _cacheService.GetAsync(id);
+            var content = await GetContentAsync(id);
             if (content == null)
+                return NotFound();
+
+            foreach (var genre in genres)
             {
-                content = await _manager.GetContent(id).ConfigureAwait(false);
-                if (content == null)
-                    return NotFound();
-                
-                var newGenres = new List<string>();
-                foreach (var gen in genre)
+                try
                 {
-                    if (!content.GenreList.Contains(gen))
-                        newGenres.Add(gen);
-                    else
-                    {
-                        _logger.LogWarning($"Genre '{gen}' already exists in content with id {id}");
-                        return BadRequest(new MessageOutput { Message = "Genre already exists" });
-                    }
+                    content = content.AddGenre(genre);
                 }
-                
-                content = new Content
-                (
-                    content.Id,
-                    content.Title,
-                    content.SubTitle,
-                    content.Description,
-                    content.ImageUrl,
-                    content.Duration,
-                    content.StartTime,
-                    content.EndTime,
-                    content.GenreList.Concat(newGenres).ToList()
-                );
-                
-                await _cacheService.SetAsync(id, content);
-                
-                var updatedContentDto = new ContentDto
-                (
-                    content.Title,
-                    content.SubTitle,
-                    content.Description,
-                    content.ImageUrl,
-                    content.Duration,
-                    content.StartTime,
-                    content.EndTime,
-                    content.GenreList.Concat(newGenres).ToList()
-                );
-                
-                var updatedContent = await _manager.UpdateContent(id, updatedContentDto).ConfigureAwait(false);
-                _logger.LogInformation($"Genres added successfully to content with id {id}");
-                
-                return Ok(updatedContent);
-            }
-            else
-            {
-                var newGenres = new List<string>();
-                foreach (var gen in genre)
+                catch (GenreAlreadyExistsException ex)
                 {
-                    if (!content.GenreList.Contains(gen))
-                        newGenres.Add(gen);
-                    else
-                    {
-                        _logger.LogWarning($"Genre '{gen}' already exists in content with id {id}");
-                        return BadRequest(new MessageOutput { Message = "Genre already exists" });
-                    }
+                    _logger.LogWarning(ex.Message);
+                    return BadRequest(new MessageOutput { Message = ex.Message });
                 }
-                
-                var updatedContentDto = new Content
-                (
-                    content.Id,
-                    content.Title,
-                    content.SubTitle,
-                    content.Description,
-                    content.ImageUrl,
-                    content.Duration,
-                    content.StartTime,
-                    content.EndTime,
-                    content.GenreList.Concat(newGenres).ToList()
-                );
-                
-                await _cacheService.SetAsync(id, updatedContentDto);
             }
+
+            await UpdateContentAsync(id, content);
 
             _logger.LogInformation($"Genres added successfully to content with id {id}");
 
@@ -325,5 +261,33 @@ public class ContentController : Controller
             _logger.LogError(ex, $"An error occurred while removing genres from content with id '{id}'.");
             return StatusCode(500, "An error occurred while processing your request.");
         }
+    }
+    
+    private async Task<Content> GetContentAsync(Guid id)
+    {
+        var content = await _cacheService.GetAsync(id);
+        if (content == null)
+            content = await _manager.GetContent(id).ConfigureAwait(false);
+
+        return content;
+    }
+
+    private async Task UpdateContentAsync(Guid id, Content content)
+    {
+        await _cacheService.SetAsync(id, content);
+
+        var updatedContentDto = new ContentDto
+        (
+            content.Title,
+            content.SubTitle,
+            content.Description,
+            content.ImageUrl,
+            content.Duration,
+            content.StartTime,
+            content.EndTime,
+            content.GenreList
+        );
+
+        await _manager.UpdateContent(id, updatedContentDto).ConfigureAwait(false);
     }
 }
