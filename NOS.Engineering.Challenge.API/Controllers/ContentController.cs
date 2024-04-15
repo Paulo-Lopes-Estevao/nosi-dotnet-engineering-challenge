@@ -85,16 +85,19 @@ public class ContentController : Controller
     
     [HttpPost]
     public async Task<IActionResult> CreateContent(
-        [FromBody] ContentInput content
+        [FromBody] ContentInput contentInput
         )
     {
         _logger.LogInformation("Received request to create content.");
 
         try
         {
-            var createdContent = await _manager.CreateContent(content.ToDto()).ConfigureAwait(false);
+            var content = contentInput.FromDto(contentInput);
+            var createdContent = content.CreateContent(content);
+            
+            var savedContent = await _manager.CreateContent(contentInput.ToDto()).ConfigureAwait(false);
 
-            if (createdContent == null)
+            if (savedContent == null)
             {
                 _logger.LogWarning("Failed to create content. Null content returned.");
                 return Problem();

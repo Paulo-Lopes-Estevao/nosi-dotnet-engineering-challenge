@@ -25,6 +25,21 @@ public class ContentInput
             new List<string>()
         );
     }
+    
+    public Content FromDto(ContentInput contentDto)
+    {
+        return new Content(
+            new Guid(),
+            contentDto.Title!,
+            contentDto.SubTitle!,
+            contentDto.Description!,
+            contentDto.ImageUrl!,
+            contentDto.Duration.GetValueOrDefault(),
+            contentDto.StartTime.GetValueOrDefault(),
+            contentDto.EndTime.GetValueOrDefault(),
+            new List<string>()
+        );
+    }
 }
 
 public class MessageOutput
