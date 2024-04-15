@@ -47,6 +47,11 @@ public class Content
     {
         if (string.IsNullOrWhiteSpace(genre))
             throw new ArgumentException("Genre cannot be null or empty.", nameof(genre));
+        
+        if (!HasGenre(genre))
+        {
+            throw new GenreNotFoundException($"Genre '{genre}' not found in the list of genres.");
+        }
 
         var updatedGenres = GenreList.ToList();
         updatedGenres.RemoveAll(g => string.Equals(g, genre, StringComparison.OrdinalIgnoreCase));
