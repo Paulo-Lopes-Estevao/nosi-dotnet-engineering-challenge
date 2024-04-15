@@ -14,7 +14,7 @@ public class Content
     public int Duration { get; }
     public DateTime StartTime { get; }
     public DateTime EndTime { get; }
-    public IEnumerable<string> GenreList { get; }
+    public IEnumerable<string> GenreList { get; private set; }
 
     public Content(Guid id, string title, string subTitle, string description, string imageUrl, int duration, DateTime startTime, DateTime endTime, IEnumerable<string> genreList)
     {
@@ -61,14 +61,14 @@ public class Content
     {
         if (string.IsNullOrWhiteSpace(genre))
             throw new ArgumentException("Genre cannot be null or empty.", nameof(genre));
-
+        
         if (HasGenre(genre))
         {
-            throw new GenreAlreadyExistsException($"Genre '{genre}' already exists.");
+            return this;
         }
 
-        var updatedGenres = GenreList.Append(genre);
-        return new Content(Id, Title, SubTitle, Description, ImageUrl, Duration, StartTime, EndTime, updatedGenres);
+        GenreList = GenreList.Append(genre);
+        return this;
     }
     
     public Content RemoveGenre(string genre)
